@@ -238,3 +238,17 @@ window.onload = function() {
     finalScoreText.textContent = "あなたのスコア: " + score;
     if (score > highScore) {
       localStorage.setItem("bubble
+      localStorage.setItem("bubbleHighScore", score);
+      highScore = score;
+      highScoreDisplay.textContent = "ハイスコア: " + highScore;
+    }
+    gameOverScreen.style.display = "flex";
+  }
+
+  function restartGame() {
+    startGame();
+  }
+};
+</script>
+</body>
+</html>
