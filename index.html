@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>バブルポップゲーム</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(to top, #a0eaff, #ffffff);
+      font-family: 'Segoe UI', sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .overlay h1 {
+      font-size: 56px;
+      color: #0077cc;
+      text-shadow: 2px 2px #aaddff;
+      animation: float 2s ease-in-out infinite;
+    }
+    .overlay button {
+      font-size: 24px;
+      padding: 10px 30px;
+      margin: 10px;
+      border: none;
+      background: #3399ff;
+      color: white;
+      border-radius: 10px;
+    }
+    .overlay p {
+      font-size: 18px;
+      color: #004466;
+      margin-top: 30px;
+      text-align: center;
+    }
+    #scoreBoard, #timer, #highScore {
+      position: absolute;
+      font-size: 20px;
+      color: #004466;
+    }
+    #scoreBoard { top: 10px; left: 20px; }
+    #timer { top: 10px; right: 20px; }
+    #highScore { top: 40px; right: 20px; }
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="titleScreen" class="overlay">
+  <h1>🫧バブルポップゲーム🫧</h1>
+  <button onclick="startGame()">スタート</button>
+  <p>
+    📱 スマホ：タップしてシャボン玉を割ろう！<br>
+    💻 パソコン：マウスクリックで割れるよ！
+  </p>
+</div>
+
+<div id="gameOverScreen" class="overlay" style="display:none;">
+  <h1>タイムアップ！</h1>
+  <p id="finalScore"></p>
+  <button onclick="restartGame()">リトライ</button>
+</div>
+
+<div id="scoreBoard">スコア: 0</div>
+<div id="timer">のこり: 30</div>
+<div id="highScore">ハイスコア: 0</div>
+<audio id="popSound" src="https://freesound.org/data/previews/341/341695_5260877-lq.mp3"></audio>
+
+<script>
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const bubbles = [];
+  let score = 0;
+  let timeLeft = 30;
+  let gameRunning = false;
+  let timerInterval, bubbleInterval;
+
+  const titleScreen = document.getElementById("titleScreen");
+  const gameOverScreen = document.getElementById("gameOverScreen");
+  const finalScoreText = document.getElementById("finalScore");
+  const scoreBoard = document.getElementById("scoreBoard");
+  const timerDisplay = document.getElementById("timer");
+  const highScoreDisplay = document.getElementById("highScore");
+  const popSound = document.getElementById("popSound");
+
+  let highScore = localStorage.getItem("bubbleHighScore") || 0;
+  highScoreDisplay.textContent = "ハイスコア: " + highScore;
+
+  function createBubble() {
+    if (!gameRunning) return;
+    bubbles.push({
+      x: Math.random() * canvas.width,
+      y: canvas.height + 30,
+      radius: 20 + Math.random() * 20,
+      speed: 1 + Math.random() * 2
+    });
+  }
+
+  function drawBubble(bubble) {
+    ctx.beginPath();
+    ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.strokeStyle = "#99ccff";
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+    ctx.closePath();
+  }
+
+  function update() {
+    if (!gameRunning) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    bubbles.forEach((bubble, index) => {
+      bubble.y -= bubble.speed;
+      drawBubble(bubble);
+      if (bubble.y + bubble.radius < 0) {
+        bubbles.splice(index, 1);
+      }
+    });
+
+    requestAnimationFrame(update);
+  }
+
+  function handlePop(x, y) {
+    bubbles.forEach((bubble, index) => {
+      const dx = bubble.x - x;
+      const dy = bubble.y - y;
+      if (Math.sqrt(dx * dx + dy * dy) < bubble.radius) {
+        bubbles.splice(index, 1);
+        score++;
+        scoreBoard.textContent = "スコア: " + score;
+        popSound.currentTime = 0;
+        popSound.play();
+      }
+    });
+  }
+
+  canvas.addEventListener("touchstart", (e) => {
+    if (!gameRunning) return;
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    handlePop(touch.clientX - rect.left, touch.clientY - rect.top);
+  });
+
+  canvas.addEventListener("mousedown", (e) => {
+    if (!gameRunning) return;
+    const rect = canvas.getBoundingClientRect();
+    handlePop(e.clientX - rect.left, e.clientY - rect.top);
+  });
+
+  function countdown() {
+    timeLeft--;
+    timerDisplay.textContent = "のこり: " + timeLeft;
+    if (timeLeft <= 0) {
+      endGame();
+    }
+  }
+
+  function startGame() {
+    titleScreen.style.display = "none";
+    gameOverScreen.style.display = "none";
+    score = 0;
+    timeLeft = 30;
+    bubbles.length = 0;
+    gameRunning = true;
+    scoreBoard.textContent = "スコア: 0";
+    timerDisplay.textContent = "のこり: 30";
+    update();
+    bubbleInterval = setInterval(createBubble, 600);
+    timerInterval = setInterval(countdown, 1000);
+  }
+
+  function endGame() {
+    gameRunning = false;
+    clearInterval(bubbleInterval);
+    clearInterval(timerInterval);
+    finalScoreText.textContent = "あなたのスコア: " + score;
+    if (score > highScore) {
+      localStorage.setItem("bubbleHighScore", score);
+      highScore = score;
+      highScoreDisplay.textContent = "ハイスコア: " + highScore;
+    }
+    gameOverScreen.style.display = "flex";
+  }
+
+  function restartGame() {
+    startGame();
+  }
+</script>
+</body>
+</html>
