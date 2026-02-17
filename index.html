@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>全部のせバブルポップ</title>
+  <title>バブルポップ</title>
   <style>
     body {
       margin: 0;
@@ -70,7 +70,7 @@
 <canvas id="gameCanvas"></canvas>
 
 <div id="titleScreen" class="overlay">
-  <h1>🫧全部のせバブルポップ🫧</h1>
+  <h1>🫧バブルポップ🫧</h1>
   <label>難易度：
     <select id="difficulty">
       <option value="easy">かんたん</option>
@@ -234,7 +234,6 @@ window.onload = function() {
     gameRunning = false;
     clearInterval(bubbleInterval);
     clearInterval(timerInterval);
-    finalScoreText.textContent = "あなたのスコア:
           finalScoreText.textContent = "あなたのスコア: " + score;
     if (score > highScore) {
       localStorage.setItem("bubbleHighScore", score);
