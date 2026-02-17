@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>バブルポップゲーム</title>
+  <title>バブルポップ</title>
   <style>
     body {
       margin: 0;
@@ -19,7 +19,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.85);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -27,24 +27,28 @@
       z-index: 10;
     }
     .overlay h1 {
-      font-size: 56px;
+      font-size: 48px;
       color: #0077cc;
-      text-shadow: 2px 2px #aaddff;
       animation: float 2s ease-in-out infinite;
     }
     .overlay button {
-      font-size: 24px;
-      padding: 10px 30px;
-      margin: 10px;
+      font-size: 20px;
+      padding: 8px 20px;
+      margin: 6px;
       border: none;
       background: #3399ff;
       color: white;
-      border-radius: 10px;
+      border-radius: 8px;
+    }
+    .overlay select {
+      font-size: 18px;
+      margin: 10px;
+      padding: 5px;
     }
     .overlay p {
-      font-size: 18px;
+      font-size: 16px;
       color: #004466;
-      margin-top: 30px;
+      margin-top: 20px;
       text-align: center;
     }
     #scoreBoard, #timer, #highScore {
@@ -66,12 +70,22 @@
 <canvas id="gameCanvas"></canvas>
 
 <div id="titleScreen" class="overlay">
-  <h1>🫧バブルポップゲーム🫧</h1>
-  <button onclick="startGame()">スタート</button>
-  <p>
-    📱 スマホ：タップしてシャボン玉を割ろう！<br>
-    💻 パソコン：マウスクリックで割れるよ！
-  </p>
+  <h1>🫧全部のせバブルポップ🫧</h1>
+  <label>難易度：
+    <select id="difficulty">
+      <option value="easy">かんたん</option>
+      <option value="normal" selected>ふつう</option>
+      <option value="hard">むずかしい</option>
+    </select>
+  </label>
+  <label>時間：
+    <select id="timeLimit">
+      <option value="30" selected>30秒</option>
+      <option value="60">60秒</option>
+    </select>
+  </label>
+  <button onclick="startGame()">スタート！</button>
+  <p>📱 タップ or 💻 クリックでバブルを割ろう！<br>タフバブルは5回タップで割れるよ！</p>
 </div>
 
 <div id="gameOverScreen" class="overlay" style="display:none;">
@@ -96,6 +110,8 @@
   let timeLeft = 30;
   let gameRunning = false;
   let timerInterval, bubbleInterval;
+  let bubbleSpeed = 2;
+  let bubbleRate = 600;
 
   const titleScreen = document.getElementById("titleScreen");
   const gameOverScreen = document.getElementById("gameOverScreen");
@@ -105,24 +121,31 @@
   const highScoreDisplay = document.getElementById("highScore");
   const popSound = document.getElementById("popSound");
 
+  const difficultySelect = document.getElementById("difficulty");
+  const timeLimitSelect = document.getElementById("timeLimit");
+
   let highScore = localStorage.getItem("bubbleHighScore") || 0;
   highScoreDisplay.textContent = "ハイスコア: " + highScore;
 
   function createBubble() {
     if (!gameRunning) return;
+    const isTough = Math.random() < 0.2;
     bubbles.push({
       x: Math.random() * canvas.width,
       y: canvas.height + 30,
-      radius: 20 + Math.random() * 20,
-      speed: 1 + Math.random() * 2
+      radius: isTough ? 35 : 20 + Math.random() * 20,
+      speed: bubbleSpeed + Math.random() * 1.5,
+      hits: isTough ? 5 : 1,
+      maxHits: isTough ? 5 : 1
     });
   }
 
   function drawBubble(bubble) {
+    const alpha = 0.3 + 0.7 * (bubble.hits / bubble.maxHits);
     ctx.beginPath();
     ctx.arc(bubble.x, bubble.y, bubble.radius, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-    ctx.strokeStyle = "#99ccff";
+    ctx.fillStyle = bubble.maxHits > 1 ? `rgba(0, 150, 255, ${alpha})` : "rgba(255, 255, 255, 0.5)";
+    ctx.strokeStyle = bubble.maxHits > 1 ? "#004488" : "#99ccff";
     ctx.lineWidth = 2;
     ctx.fill();
     ctx.stroke();
@@ -131,9 +154,7 @@
 
   function update() {
     if (!gameRunning) return;
-
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     bubbles.forEach((bubble, index) => {
       bubble.y -= bubble.speed;
       drawBubble(bubble);
@@ -141,7 +162,6 @@
         bubbles.splice(index, 1);
       }
     });
-
     requestAnimationFrame(update);
   }
 
@@ -150,11 +170,14 @@
       const dx = bubble.x - x;
       const dy = bubble.y - y;
       if (Math.sqrt(dx * dx + dy * dy) < bubble.radius) {
-        bubbles.splice(index, 1);
-        score++;
-        scoreBoard.textContent = "スコア: " + score;
+        bubble.hits--;
         popSound.currentTime = 0;
         popSound.play();
+        if (bubble.hits <= 0) {
+          bubbles.splice(index, 1);
+          score++;
+          scoreBoard.textContent = "スコア: " + score;
+        }
       }
     });
   }
@@ -181,16 +204,29 @@
   }
 
   function startGame() {
+    const difficulty = difficultySelect.value;
+    if (difficulty === "easy") {
+      bubbleSpeed = 1;
+      bubbleRate = 900;
+    } else if (difficulty === "normal") {
+      bubbleSpeed = 2;
+      bubbleRate = 600;
+    } else if (difficulty === "hard") {
+      bubbleSpeed = 3;
+      bubbleRate = 400;
+    }
+
+    timeLeft = parseInt(timeLimitSelect.value);
+
     titleScreen.style.display = "none";
     gameOverScreen.style.display = "none";
     score = 0;
-    timeLeft = 30;
     bubbles.length = 0;
     gameRunning = true;
     scoreBoard.textContent = "スコア: 0";
-    timerDisplay.textContent = "のこり: 30";
+    timerDisplay.textContent = "のこり: " + timeLeft;
     update();
-    bubbleInterval = setInterval(createBubble, 600);
+    bubbleInterval = setInterval(createBubble, bubbleRate);
     timerInterval = setInterval(countdown, 1000);
   }
 
@@ -200,16 +236,4 @@
     clearInterval(timerInterval);
     finalScoreText.textContent = "あなたのスコア: " + score;
     if (score > highScore) {
-      localStorage.setItem("bubbleHighScore", score);
-      highScore = score;
-      highScoreDisplay.textContent = "ハイスコア: " + highScore;
-    }
-    gameOverScreen.style.display = "flex";
-  }
-
-  function restartGame() {
-    startGame();
-  }
-</script>
-</body>
-</html>
+      localStorage.setItem("bubbleHighScore",
